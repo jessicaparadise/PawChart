@@ -1,8 +1,13 @@
 const BASE_URL = (import.meta.env.VITE_API_URL || '') + '/api';
 
 async function request(endpoint, options = {}) {
+  const userId = localStorage.getItem('pawchart_user_id');
   const res = await fetch(`${BASE_URL}${endpoint}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(userId ? { 'x-user-id': userId } : {}),
+      ...options.headers,
+    },
     ...options,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
@@ -55,4 +60,13 @@ export const api = {
 
   // AI
   aiChat: (petId, message, history) => request('/ai/chat', { method: 'POST', body: { petId, message, history } }),
+  aiInsights: () => request('/ai/insights', { method: 'POST' }),
+
+  // Users
+  getUser: (id) => request(`/users/${id}`),
+  createUser: (data) => request('/users', { method: 'POST', body: data }),
+
+  // Subscriptions
+  createCheckout: (userId) => request('/subscriptions/checkout', { method: 'POST', body: { userId } }),
+  openBillingPortal: (userId) => request('/subscriptions/portal', { method: 'POST', body: { userId } }),
 };

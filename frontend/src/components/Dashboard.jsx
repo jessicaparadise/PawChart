@@ -1,6 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useUser } from '../context/UserContext';
+import { api } from '../utils/api';
 import { formatDate, getSpeciesEmoji, getAge, getVaccinationStatus, getAppointmentTypeLabel, getAppointmentTypeColor } from '../utils/helpers';
 import { format, parseISO, isPast } from 'date-fns';
 
@@ -18,8 +20,96 @@ function StatCard({ label, value, color, icon }) {
   );
 }
 
+// Parse markdown links for AI insight messages
+function renderInsightMessage(text) {
+  const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) parts.push(<span key={lastIndex}>{text.slice(lastIndex, match.index)}</span>);
+    const [, label, url] = match;
+    const isVetster = url.includes('vetster.com');
+    parts.push(
+      <a key={match.index} href={url} target="_blank" rel="noopener noreferrer"
+        className={`inline-flex items-center gap-1 text-xs font-medium underline ${isVetster ? 'text-green-700' : 'text-blue-700'}`}>
+        {isVetster ? '📹' : '🛒'} {label}
+      </a>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) parts.push(<span key="end">{text.slice(lastIndex)}</span>);
+  return parts.length > 0 ? parts : text;
+}
+
+function AIHealthInsights() {
+  const [insights, setInsights] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.aiInsights()
+      .then(data => setInsights(data.insights || []))
+      .catch(() => setInsights([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-lg">🤖</span>
+          <h2 className="font-semibold text-gray-900">AI Health Insights</h2>
+          <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">Premium</span>
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+        </div>
+      </div>
+    );
+  }
+
+  if (insights.length === 0) return null;
+
+  const typeStyles = {
+    alert: 'bg-red-50 border-red-200 text-red-800',
+    recommendation: 'bg-blue-50 border-blue-200 text-blue-800',
+    info: 'bg-gray-50 border-gray-200 text-gray-700',
+  };
+  const typeIcons = { alert: '⚠️', recommendation: '💡', info: 'ℹ️' };
+
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-lg">🤖</span>
+        <h2 className="font-semibold text-gray-900">AI Health Insights</h2>
+        <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full ml-1">Premium</span>
+        <Link to="/ai" className="ml-auto text-xs text-paw-600 hover:text-paw-700 font-medium">Ask AI →</Link>
+      </div>
+      <div className="space-y-3">
+        {insights.map((insight, i) => (
+          <div key={i} className={`rounded-xl border p-3 ${typeStyles[insight.type] || typeStyles.info}`}>
+            <div className="flex items-start gap-2">
+              <span className="flex-shrink-0">{typeIcons[insight.type] || 'ℹ️'}</span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">
+                  {insight.petName && <span className="font-bold">{insight.petName}: </span>}
+                  {insight.title}
+                  {insight.urgent && <span className="ml-1 text-xs text-red-600 font-medium">· Urgent</span>}
+                </p>
+                <p className="text-xs mt-0.5 leading-relaxed">{renderInsightMessage(insight.message)}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { pets, upcomingAppointments, activeMedications, fetchPets, fetchUpcomingAppointments, fetchActiveMedications, petsLoading } = useApp();
+  const { user } = useUser();
 
   useEffect(() => {
     fetchPets();
@@ -50,6 +140,23 @@ export default function Dashboard() {
           }).length
         } color="bg-amber-100" icon="⚠️" />
       </div>
+
+      {/* AI Health Insights — premium only */}
+      {user?.isPremium && <AIHealthInsights />}
+
+      {/* Upgrade nudge for free users with pets */}
+      {!user?.isPremium && pets.length > 0 && (
+        <div className="card bg-gradient-to-r from-paw-50 to-amber-50 border border-paw-200 flex items-center gap-4 flex-wrap">
+          <div className="text-2xl">✨</div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-900 text-sm">Get AI health insights for your pets</p>
+            <p className="text-xs text-gray-500 mt-0.5">Predictive alerts, product recommendations, and telehealth referrals.</p>
+          </div>
+          <Link to="/pricing" className="btn-primary text-sm flex-shrink-0">
+            Upgrade for $4.99/mo
+          </Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Pet List */}

@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Anthropic = require('@anthropic-ai/sdk');
-const db = require('../db/database');
+const { getDb } = require('../db/database');
+const { requirePremium } = require('../middleware/requirePremium');
 
 const client = new Anthropic();
 
@@ -27,6 +28,7 @@ function getVaccineStatus(nextDueDate) {
 }
 
 function buildPetContext(pet) {
+  const db = getDb();
   const lines = [];
 
   lines.push('**Pet Profile:**');
@@ -82,7 +84,7 @@ function buildPetContext(pet) {
 
   const weights = db.prepare('SELECT * FROM weight_records WHERE pet_id = ? ORDER BY recorded_at DESC LIMIT 5').all(pet.id);
   if (weights.length > 0) {
-    lines.push('\n**Recent Weight Records:**');
+    lines.push('\n**Recent Weight Records (newest first):**');
     weights.forEach(w => {
       lines.push(`- ${w.weight} ${w.unit} on ${w.recorded_at}${w.notes ? ` (${w.notes})` : ''}`);
     });
@@ -93,8 +95,17 @@ function buildPetContext(pet) {
   return lines.join('\n');
 }
 
-// POST /api/ai/chat
-router.post('/chat', async (req, res) => {
+const AFFILIATE_INSTRUCTIONS = `
+When recommending specific products (supplements, foods, toys, medications), include a purchase link:
+- Chewy: [Product Name on Chewy](https://www.chewy.com/s?query=SEARCH+TERMS&ref=pawchart-ref)
+- Amazon: [Product Name on Amazon](https://www.amazon.com/s?k=SEARCH+TERMS&tag=pawchart-20)
+Replace SEARCH+TERMS with actual product search terms (use + for spaces).
+
+When you detect a health concern that may need prompt attention, include this exact link once:
+[Book a Virtual Vet Visit →](https://www.vetster.com/?utm_source=pawchart)`;
+
+// POST /api/ai/chat — premium-gated chat
+router.post('/chat', requirePremium, async (req, res) => {
   const { petId, message, history = [] } = req.body;
 
   if (!message || !message.trim()) {
@@ -109,14 +120,16 @@ Guidelines:
 - Give clear, concise, and helpful answers
 - Reference specific health data from the pet's records when relevant
 - For any serious medical concerns, always recommend consulting a licensed veterinarian
-- Use the pet's name when referring to them to make responses feel personal
-- Today's date is ${new Date().toISOString().split('T')[0]}`;
+- Use the pet's name when referring to them
+- Today's date is ${new Date().toISOString().split('T')[0]}
+${AFFILIATE_INSTRUCTIONS}`;
 
     if (petId) {
+      const db = getDb();
       const pet = db.prepare('SELECT * FROM pets WHERE id = ?').get(petId);
       if (pet) {
         const context = buildPetContext(pet);
-        systemPrompt += `\n\nYou are currently helping with health information for the following pet:\n\n${context}\n\nUse this data to give personalized, accurate answers. Reference specific dates, medications, and health records when relevant to the question.`;
+        systemPrompt += `\n\nYou are currently helping with health information for:\n\n${context}\n\nUse this data to give personalized, accurate answers.`;
       }
     }
 
@@ -136,6 +149,57 @@ Guidelines:
   } catch (err) {
     console.error('AI chat error:', err);
     res.status(500).json({ error: 'Failed to get AI response. Please try again.' });
+  }
+});
+
+// POST /api/ai/insights — predictive health alerts for all pets (premium)
+router.post('/insights', requirePremium, async (req, res) => {
+  try {
+    const db = getDb();
+    const pets = db.prepare('SELECT * FROM pets').all();
+
+    if (pets.length === 0) return res.json({ insights: [] });
+
+    let context = 'Health data for all pets:\n\n';
+    for (const pet of pets) {
+      context += buildPetContext(pet) + '\n\n---\n\n';
+    }
+
+    const systemPrompt = `You are PawChart AI, a proactive pet health analyst. Analyze the provided health data and identify the most important insights and alerts for pet parents.
+${AFFILIATE_INSTRUCTIONS}
+
+Return ONLY a valid JSON array (no markdown wrapper, no explanation). Each element:
+{
+  "petName": "string",
+  "type": "alert" | "recommendation" | "info",
+  "title": "string (8 words max)",
+  "message": "string (2-3 sentences; may include markdown-style links)",
+  "urgent": true | false
+}
+
+Limit to 3–6 total insights. Prioritize: overdue vaccinations, concerning weight trends, medication reminders, upcoming vet needs, preventive care with product suggestions.`;
+
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: context }],
+    });
+
+    let insights = [];
+    try {
+      const text = response.content[0].text.trim();
+      // Strip markdown code fences if the model wraps anyway
+      const clean = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+      insights = JSON.parse(clean);
+    } catch {
+      insights = [];
+    }
+
+    res.json({ insights });
+  } catch (err) {
+    console.error('AI insights error:', err);
+    res.status(500).json({ error: 'Failed to generate insights' });
   }
 });
 

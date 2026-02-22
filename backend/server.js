@@ -10,6 +10,8 @@ const medicationsRouter = require('./routes/medications');
 const weightRouter = require('./routes/weight');
 const conditionsRouter = require('./routes/conditions');
 const aiRouter = require('./routes/ai');
+const usersRouter = require('./routes/users');
+const { router: subscriptionsRouter, webhookHandler } = require('./routes/subscriptions');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -29,6 +31,10 @@ app.use(cors({
     }
   },
 }));
+
+// Stripe webhook needs raw body BEFORE express.json()
+app.post('/api/subscriptions/webhook', express.raw({ type: 'application/json' }), webhookHandler);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -40,6 +46,8 @@ app.use('/api/medications', medicationsRouter);
 app.use('/api/weight', weightRouter);
 app.use('/api/conditions', conditionsRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/subscriptions', subscriptionsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
