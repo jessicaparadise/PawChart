@@ -1,0 +1,39 @@
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const errorHandler = require('./middleware/errorHandler');
+
+const petsRouter = require('./routes/pets');
+const vaccinationsRouter = require('./routes/vaccinations');
+const appointmentsRouter = require('./routes/appointments');
+const medicationsRouter = require('./routes/medications');
+const weightRouter = require('./routes/weight');
+const conditionsRouter = require('./routes/conditions');
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// API routes
+app.use('/api/pets', petsRouter);
+app.use('/api/vaccinations', vaccinationsRouter);
+app.use('/api/appointments', appointmentsRouter);
+app.use('/api/medications', medicationsRouter);
+app.use('/api/weight', weightRouter);
+app.use('/api/conditions', conditionsRouter);
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.use(errorHandler);
+
+app.listen(PORT, () => {
+  console.log(`PawChart API server running on http://localhost:${PORT}`);
+});
+
+module.exports = app;
