@@ -9,6 +9,7 @@ const appointmentsRouter = require('./routes/appointments');
 const medicationsRouter = require('./routes/medications');
 const weightRouter = require('./routes/weight');
 const conditionsRouter = require('./routes/conditions');
+const aiRouter = require('./routes/ai');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +39,7 @@ app.use('/api/appointments', appointmentsRouter);
 app.use('/api/medications', medicationsRouter);
 app.use('/api/weight', weightRouter);
 app.use('/api/conditions', conditionsRouter);
+app.use('/api/ai', aiRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

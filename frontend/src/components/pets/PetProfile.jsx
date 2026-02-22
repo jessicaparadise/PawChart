@@ -10,8 +10,9 @@ import MedicationList from '../medications/MedicationList';
 import ConditionList from '../health/ConditionList';
 import AppointmentList from '../appointments/AppointmentList';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import PetAIChat from '../ai/PetAIChat';
 
-const TABS = ['Overview', 'Vaccinations', 'Weight', 'Medications', 'Conditions', 'Appointments'];
+const TABS = ['Overview', 'Vaccinations', 'Weight', 'Medications', 'Conditions', 'Appointments', 'Ask AI'];
 
 export default function PetProfile() {
   const { id } = useParams();
@@ -206,6 +207,7 @@ export default function PetProfile() {
         {activeTab === 'Medications' && <MedicationList petId={id} initialData={pet.medications} onUpdate={loadPet} />}
         {activeTab === 'Conditions' && <ConditionList petId={id} initialData={pet.conditions} onUpdate={loadPet} />}
         {activeTab === 'Appointments' && <AppointmentList petId={id} initialData={pet.appointments} onUpdate={loadPet} />}
+        {activeTab === 'Ask AI' && <PetAIChat petId={id} petName={pet.name} />}
       </div>
 
       <AddPetModal open={showEdit} onClose={() => setShowEdit(false)} pet={pet} onSaved={() => { loadPet(); fetchPets(); }} />

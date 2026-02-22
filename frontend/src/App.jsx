@@ -7,6 +7,7 @@ import PetList from './components/pets/PetList';
 import PetProfile from './components/pets/PetProfile';
 import AppointmentsPage from './components/appointments/AppointmentsPage';
 import MedicationsPage from './components/medications/MedicationsPage';
+import AIPage from './components/ai/AIPage';
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="/pets/:id" element={<PetProfile />} />
             <Route path="/appointments" element={<AppointmentsPage />} />
             <Route path="/medications" element={<MedicationsPage />} />
+            <Route path="/ai" element={<AIPage />} />
           </Routes>
         </Layout>
       </AppProvider>

@@ -52,4 +52,7 @@ export const api = {
   createCondition: (data) => request('/conditions', { method: 'POST', body: data }),
   updateCondition: (id, data) => request(`/conditions/${id}`, { method: 'PUT', body: data }),
   deleteCondition: (id) => request(`/conditions/${id}`, { method: 'DELETE' }),
+
+  // AI
+  aiChat: (petId, message, history) => request('/ai/chat', { method: 'POST', body: { petId, message, history } }),
 };
