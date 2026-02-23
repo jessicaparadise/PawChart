@@ -6,7 +6,7 @@ const { getDb } = require('../db/database');
 const { hasPremiumAccess } = require('../middleware/requirePremium');
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
-const APP_URL = process.env.APP_URL || 'https://pawchart.ai';
+const APP_URL = process.env.APP_URL || 'https://boopchart.com';
 
 // POST /api/subscriptions/checkout — create Stripe Checkout session
 router.post('/checkout', async (req, res) => {

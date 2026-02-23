@@ -2,7 +2,7 @@ const { getDb } = require('../db/database');
 
 // Earl and any other VIP emails get lifetime premium access
 // Set EARL_VIP_EMAIL env var; comma-separated for multiple
-const VIP_EMAILS = (process.env.EARL_VIP_EMAIL || 'earl@pawchart.ai')
+const VIP_EMAILS = (process.env.EARL_VIP_EMAIL || 'earl@boopchart.com')
   .toLowerCase()
   .split(',')
   .map(e => e.trim());

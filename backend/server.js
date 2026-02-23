@@ -17,8 +17,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 const allowedOrigins = [
-  'https://pawchart.ai',
-  'https://www.pawchart.ai',
+  'https://boopchart.com',
+  'https://www.boopchart.com',
   ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://localhost:3000'] : []),
 ];
 
